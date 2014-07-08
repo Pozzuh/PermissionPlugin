@@ -1,44 +1,59 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using Addon;
-//Pozzuh xuid = 0110000102fd9a03
-namespace _PermissionPlugin
+
+namespace PermissionPlugin
 {
-    public class _PermissionPlugin : CPlugin
+    public class PermissionPlugin : CPlugin
     {
-        public List<string> Admins;
         public List<string> UserGroups;
+        public List<string> LogGroups;
+        public List<string> CommandList; //List with all commands present in Config (regardless of access type)
+
+        StreamWriter log;
+        int logType;
 
         public override void OnServerLoad()
         {
-            ServerPrint("Permission plugin loaded. Author: Pozzuh. Version 1.1 Beta");
+            ServerPrint("Permission plugin loaded. Author: Pozzuh. Version 1.2");
 
+            initLog();
+            firstStart(); 
             initUserGroups();
-            firstStart();
+            initLogGroups();
+            initCommandList();
         }
 
         void firstStart()
         {
-            if (GetServerCFG("Permission", "Usergroups", "x") == "x")
+            if (GetServerCFG("Permission", "Usergroups", "-1") == "-1")
                 SetServerCFG("Permission", "Usergroups", "Admin,Moderator,User");
 
-            if (GetServerCFG("Permission", "Admin_xuids", "x") == "x")
+            if (GetServerCFG("Permission", "Admin_xuids", "-1") == "-1")
                 SetServerCFG("Permission", "Admin_xuids", "xuid1,xuid2,xuid3");
 
-            if (GetServerCFG("Permission", "Admin_commands", "x") == "x")
-                SetServerCFG("Permission", "Admin_commands", "*ALL*");
+            if (GetServerCFG("Permission", "Admin_commands", "-1") == "-1")
+                SetServerCFG("Permission", "Admin_commands", "!help,!getxuid,!gettype");
 
-            if (GetServerCFG("Permission", "Moderator_xuids", "x") == "x")
+            if (GetServerCFG("Permission", "Moderator_xuids", "-1") == "-1")
                 SetServerCFG("Permission", "Moderator_xuids", "xuid1,xuid2,xuid3");
 
-            if (GetServerCFG("Permission", "Moderator_commands", "x") == "x")
+            if (GetServerCFG("Permission", "Moderator_commands", "-1") == "-1")
                 SetServerCFG("Permission", "Moderator_commands", "!help,!getxuid,!gettype");
 
-            if (GetServerCFG("Permission", "User_commands", "x") == "x")
+            if (GetServerCFG("Permission", "User_commands", "-1") == "-1")
                 SetServerCFG("Permission", "User_commands", "!help,!getxuid,!gettype");
 
-            if (GetServerCFG("Permission", "User_xuids", "x") == "x")
+            if (GetServerCFG("Permission", "User_xuids", "-1") == "-1")
                 SetServerCFG("Permission", "User_xuids", "*EVERYONE*");
+
+            if (GetServerCFG("Permission", "Logging", "-1") == "-1")
+                SetServerCFG("Permission", "Logging", "0"); // 0 = off, 1 = all, 2 = groups
+
+            if (GetServerCFG("Permission", "Logging_groups", "-1") == "-1")
+                SetServerCFG("Permission", "Logging_groups", "Admin,Moderator");
         }
 
         void initUserGroups()
@@ -49,6 +64,93 @@ namespace _PermissionPlugin
 
             foreach (string Group in UserGroups_string.Split(','))
                 UserGroups.Add(Group);
+        }
+
+        void initLogGroups()
+        {
+            LogGroups = new List<string>();
+
+            string LogGroups_string = GetServerCFG("Permission", "Logging_groups", "Admin,Moderator");
+
+            foreach (string Group in LogGroups_string.Split(','))
+                LogGroups.Add(Group);
+        }
+
+        void initLog()
+        {
+            string sLogType = GetServerCFG("Permission", "Logging", "0");
+            Int32.TryParse(sLogType, out logType);
+
+            if (logType == 0)
+                return;
+
+            if (!File.Exists(@"addon/logs/PermissionPlugin.log"))
+                log = new StreamWriter(@"addon/logs/PermissionPlugin.log");
+            else
+                log = File.AppendText(@"addon/logs/PermissionPlugin.log");
+            
+            Log("Server startup.");
+        }
+
+        void initCommandList()
+        {
+            CommandList = new List<string>();
+
+            foreach (string userGroup in UserGroups)
+            {
+                CommandList.AddRange(getCommandsAllowedInGroup(userGroup));
+            }
+        }
+
+        void Log(string msg)
+        {
+            if (logType == 0)
+                return;
+
+            if(log.BaseStream == null)
+                log = File.AppendText(@"addon/logs/PermissionPlugin.log");
+
+            using (log)
+            {
+                log.WriteLine("{0} - {1}: {2}", DateTime.Now.ToShortDateString(), DateTime.Now.ToLongTimeString(), msg);
+            }
+        }
+
+        void logCommand(string xuid, string name, string cmd, bool wasAllowed, string userIsInGroup)
+        {
+            if (logType == 0)
+                return;
+
+            if (logType == 2)
+            {
+               // if (!LogGroups.Exists(element => element == userIsInGroup))
+               //     return;
+                if(!LogGroups.Contains(userIsInGroup))
+                    return;
+            }
+
+            var s = new StringBuilder();
+            s.Append(xuid);
+            s.Append(" - ");
+            s.Append(name);
+            s.Append(" - ");
+            s.Append(userIsInGroup);
+            s.Append(" - ");
+            s.Append(cmd);
+
+            if (!wasAllowed)
+            {
+                s.Append(" - ");
+                s.Append("TRIED TO USE, BUT WAS NOT ALLOWED.");
+            }
+
+            Log(s.ToString());
+        }
+
+        bool checkCommandExist(string cmd)
+        {
+            //return CommandList.Exists(element => element == cmd);
+            return CommandList.Contains(cmd);
         }
 
         List<string> getUsersInGroup(string groupname)
@@ -96,26 +198,33 @@ namespace _PermissionPlugin
             return "User";
         }
 
-        public override ChatType OnSay(string Message, ServerClient Client)
+        public override ChatType OnSay(string Message, ServerClient Client, bool teamChat)
         {
             string userIsInGroup = getUserGroup(Client.XUID);
             string lowMsg = Message.ToLower();
+            List<string> allowed_commands = getCommandsAllowedInGroup(userIsInGroup);
 
-            if (lowMsg.StartsWith("!getxuid")) //Can't be used in the permission plugin OH THE IRONY
+            if (!lowMsg.StartsWith("!"))
+                return ChatType.ChatAll;
+
+            if (lowMsg.StartsWith("!getxuid")) //Can't be used in the permission plugin OH THE IRONY (or something?)
             {
+                logCommand(Client.XUID, Client.Name, "!getxuid", true, userIsInGroup);
                 TellClient(Client.ClientNum, "Your xuid is: \'" + Client.XUID + "\'.", true);
                 return ChatType.ChatNone;
             }
 
-            if (lowMsg.StartsWith("!gettype")) //Can't be used in the permission plugin OH THE IRONY
+            if (lowMsg.StartsWith("!gettype"))
             {
+                logCommand(Client.XUID, Client.Name, "!gettype", true, userIsInGroup);
                 TellClient(Client.ClientNum, "Your user type is: \'" + userIsInGroup + "\'.", true);
                 return ChatType.ChatNone;
             }
 
             if (lowMsg.StartsWith("!help") || lowMsg.StartsWith("!cmdlist"))
             {
-                List<string> allowed_commands = getCommandsAllowedInGroup(userIsInGroup);
+                logCommand(Client.XUID, Client.Name, "!help", true, userIsInGroup);
+                
                 string msg = "You can use the following commands^1:^7 ";
 
                 for (int i = 0; i < allowed_commands.Count; i++)
@@ -132,23 +241,23 @@ namespace _PermissionPlugin
                 return ChatType.ChatNone;
             }
 
-            if (userIsInGroup != "Admin")
+            if(!checkCommandExist(lowMsg.Split(' ')[0]))
             {
-                if (!lowMsg.StartsWith("!"))
-                    return ChatType.ChatAll;
-
-                List<string> allowed_commands = getCommandsAllowedInGroup(userIsInGroup);
-
-                if (allowed_commands.Contains(lowMsg.Split(' ')[0]))
-                    return ChatType.ChatContinue;
-                else
-                {
-                    TellClient(Client.ClientNum, "^1You aren't allowed to use that command!", true);
-                    return ChatType.ChatNone;
-                }
+                TellClient(Client.ClientNum, "^1That command doesn't exist.", true);
+                return ChatType.ChatNone;
             }
 
-            return ChatType.ChatContinue;
+            if (allowed_commands.Contains(lowMsg.Split(' ')[0]))
+            {
+                logCommand(Client.XUID, Client.Name, lowMsg.Split(' ')[0], true, userIsInGroup);
+                return ChatType.ChatContinue;
+            }
+            else
+            {
+                logCommand(Client.XUID, Client.Name, lowMsg.Split(' ')[0], false, userIsInGroup);
+                TellClient(Client.ClientNum, "^1You aren't allowed to use that command!", true);
+                return ChatType.ChatNone;
+            }
         }
     }
 }

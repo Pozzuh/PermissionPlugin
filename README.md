@@ -19,7 +19,10 @@ Admin usage
 2. Now, you can start the server and let the config file generate. 
 3. Open sv_config.ini and edit the settings under *[Permission]* to your likings. 
 
-You can add new groups by adding them after *Usergroups=* and adding 2 new lines, *<New Group Name>_xuids=...* and *<New Group Name>_commands=...* 
+- You can add new groups by adding them after *Usergroups=* and adding 2 new lines, *<New Group Name>_xuids=...* and *<New Group Name>_commands=...* 
+- Adding ALL after *Admin_commands* is now unsupported. You have to add all commands manually. 
+- Logging means logging of command usage. 0 = off, 1 = on, 2 = on but only for certain groups. (Add those to *Loging_groups*)
+- Make sure to keep commands lowercase and don't add any spaces.
 
 Player usage
 -----------
@@ -30,7 +33,8 @@ Player usage
 
 Plugin developer usage
 ----------------------
-Nothing. Just make sure you don't add any "isAdmin" checks yourself. So basically make sure that when this plugin isn't installed, everyone is able to use all commands.
+- Just make sure you don't add any "isAdmin" checks yourself. So basically make sure that when this plugin isn't installed, everyone is able to use all commands.
+- Make your commands start with '!'.
 
 Compiling
 ---------
