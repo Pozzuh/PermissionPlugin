@@ -21,7 +21,7 @@ Admin usage
 
 - You can add new groups by adding them after *Usergroups=* and adding 2 new lines, *[New Group Name]_xuids=...* and *[New Group Name]_commands=...* 
 - Wildcards are supported in commands, but only at the end. This is mostly for usage with "God Plugin". If you want a group to be able to use !mapdome and !mapterminal from God Plugin, you should add !map*, and so forth.
-- The SpecialChat config option can enable modifying of messages. SpecialChatGroups set which groups should be modified. You can add more groups by adding *[Group Name]_SpecialSay=...*
+- The SpecialChat config option can enable modifying of messages. SpecialChatGroups set which groups should be modified. You can add more groups by adding them to SpecialChatGroups and adding a new line: *[Group Name]_SpecialSay=[{0}] {1}: ^8{2}*
 - *[Group Name]_SpecialSay* modifies what a message looks like. The following strings get replaced by: {0} = the user's group, {1} = the username, {2} = the message.
 - Adding ALL after *Admin_commands* is now unsupported. You have to add all commands manually. 
 - When logging is enabled, usage of commands is logged to addon/logs/PermissionPlugin.log. 0 = off, 1 = on, 2 = on but only for certain groups. (Add those to *Loging_groups*)
