@@ -62,7 +62,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>CD $(OutDir)
+    <PostBuildEvent>START TASKKILL /F /IM "iw5mp_server.exe"
+CD $(OutDir)
 DEL aaaPermissionPlugin.dll
 REN $(TargetFileName) aaaPermissionPlugin.dll
 XCOPY /Y "aaaPermissionPlugin.dll" "D:\MW3Server\plugins\"</PostBuildEvent>

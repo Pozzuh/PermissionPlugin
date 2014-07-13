@@ -10,20 +10,24 @@ namespace PermissionPlugin
     {
         public List<string> UserGroups;
         public List<string> LogGroups;
+        public List<string> SpecialChatGroups;
         public List<string> CommandList; //List with all commands present in Config (regardless of access type)
+
+        bool specialChat = false;
 
         StreamWriter log;
         int logType;
 
         public override void OnServerLoad()
         {
-            ServerPrint("Permission plugin loaded. Author: Pozzuh. Version 1.2");
+            ServerPrint("Permission plugin loaded. Author: Pozzuh. Version 1.4");
 
             initLog();
             firstStart(); 
             initUserGroups();
             initLogGroups();
             initCommandList();
+            initSpecialChatGroups();
         }
 
         void firstStart()
@@ -54,6 +58,18 @@ namespace PermissionPlugin
 
             if (GetServerCFG("Permission", "Logging_groups", "-1") == "-1")
                 SetServerCFG("Permission", "Logging_groups", "Admin,Moderator");
+
+            if (GetServerCFG("Permission", "SpecialChat", "-1") == "-1")
+                SetServerCFG("Permission", "SpecialChat", "0");
+
+            if (GetServerCFG("Permission", "SpecialChatGroups", "-1") == "-1")
+                SetServerCFG("Permission", "SpecialChatGroups", "Admin,Moderator");
+
+            if (GetServerCFG("Permission", "Admin_SpecialSay", "-1") == "-1")
+                SetServerCFG("Permission", "Admin_SpecialSay", "[{0}] ^8{1}^7: {2}");
+
+            if (GetServerCFG("Permission", "Moderator_SpecialSay", "-1") == "-1")
+                SetServerCFG("Permission", "Moderator_SpecialSay", "[{0}] ^8{1}^7: {2}");
         }
 
         void initUserGroups()
@@ -66,6 +82,35 @@ namespace PermissionPlugin
                 UserGroups.Add(Group);
         }
 
+        void initSpecialChatGroups()
+        {
+            SpecialChatGroups = new List<string>();
+
+            string sSpecialEnabled = GetServerCFG("Permission", "SpecialChat", "0");
+            int iSpecialEnabled;
+            Int32.TryParse(sSpecialEnabled, out iSpecialEnabled);
+            specialChat = Convert.ToBoolean(iSpecialEnabled);
+
+            if (!specialChat)
+                return;
+
+            string sGroups = GetServerCFG("Permission", "SpecialChatGroups", " ");
+
+            if (sGroups != " ")
+                foreach (string group in sGroups.Split(','))
+                    SpecialChatGroups.Add(group);
+ 
+        }
+
+        string getSpecialChatGroupString(string group) //{0} = group, {1} = name, {2} = message
+        {
+            return GetServerCFG("Permission", group + "_SpecialSay", "{1}: ^8{2}");
+        }
+
+        bool groupHasSpecialSay(string group)
+        {
+            return SpecialChatGroups.Contains(group);
+        }
         void initLogGroups()
         {
             LogGroups = new List<string>();
@@ -149,8 +194,34 @@ namespace PermissionPlugin
 
         bool checkCommandExist(string cmd)
         {
-            //return CommandList.Exists(element => element == cmd);
-            return CommandList.Contains(cmd);
+            if (!CommandList.Contains(cmd))
+            {
+                List<string> list = CommandList.FindAll(s => s.EndsWith("*"));
+                foreach (string s in list)
+                {
+                    if(cmd.StartsWith(s.Split('*')[0]))
+                        return true;
+                }
+                return false;
+            }
+            return true;
+        }
+
+        bool canUseCommand(string cmd, string group)
+        {
+            List<string> allowedCommands = getCommandsAllowedInGroup(group);
+            if (!allowedCommands.Contains(cmd))
+            {
+                List<string> list = allowedCommands.FindAll(s => s.EndsWith("*"));
+                foreach (string s in list)
+                {
+                    if (cmd.StartsWith(s.Split('*')[0]))
+                        return true;
+                }
+
+                return false;
+            }
+            return true;
         }
 
         List<string> getUsersInGroup(string groupname)
@@ -205,7 +276,16 @@ namespace PermissionPlugin
             List<string> allowed_commands = getCommandsAllowedInGroup(userIsInGroup);
 
             if (!lowMsg.StartsWith("!"))
-                return ChatType.ChatAll;
+            {
+                if(specialChat && !teamChat && groupHasSpecialSay(userIsInGroup))
+                {
+                    string formatString = getSpecialChatGroupString(userIsInGroup);
+                    ServerSay(string.Format(formatString, getUserGroup(Client.XUID), Client.Name, Message), true);
+                    return ChatType.ChatNone;
+                }
+                
+                return ChatType.ChatContinue;
+            }
 
             if (lowMsg.StartsWith("!getxuid")) //Can't be used in the permission plugin OH THE IRONY (or something?)
             {
@@ -241,13 +321,14 @@ namespace PermissionPlugin
                 return ChatType.ChatNone;
             }
 
-            if(!checkCommandExist(lowMsg.Split(' ')[0]))
+            if (!checkCommandExist(lowMsg.Split(' ')[0]))
             {
                 TellClient(Client.ClientNum, "^1That command doesn't exist.", true);
                 return ChatType.ChatNone;
             }
 
-            if (allowed_commands.Contains(lowMsg.Split(' ')[0]))
+            //if (allowed_commands.Contains(lowMsg.Split(' ')[0]))
+            if(canUseCommand(lowMsg.Split(' ')[0], userIsInGroup))
             {
                 logCommand(Client.XUID, Client.Name, lowMsg.Split(' ')[0], true, userIsInGroup);
                 return ChatType.ChatContinue;
