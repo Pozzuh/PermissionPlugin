@@ -4,7 +4,7 @@ Permission Plugin
 This is a plugin for [Nukem's MW3 server addon](http://www.itsmods.com/forum/Thread-Release-MW3-Server-Addon--7734.html). It allows server admins to have control over who can use commands. It has support for multiple groups, like admin, moderators and users. This plugin will work with any other plugin automatically.
 
 The idea behind this central plugin is that admins don't have to setup xuids for every single plugin seperatly.
-
+It's now possible to modify the chat messages, you can for example add a tag for admins or moderators.
 
 Requirements
 ------------
@@ -20,8 +20,11 @@ Admin usage
 3. Open sv_config.ini and edit the settings under *[Permission]* to your likings. 
 
 - You can add new groups by adding them after *Usergroups=* and adding 2 new lines, *<New Group Name>_xuids=...* and *<New Group Name>_commands=...* 
+- Wildcards are supported in commands, but only at the end. This is mostly for usage with "God Plugin". If you want a group to be able to use !mapdome and !mapterminal from God Plugin, you should add !map*, and so forth.
+- The SpecialChat config option can enable modifying of messages. SpecialChatGroups set which groups should be modified. You can add more groups by adding *<Group Name>_SpecialSay=...*
+- *<Group Name>_SpecialSay* modifies what a message looks like. The following strings get replaced by: {0} = the user's group, {1} = the username, {2} = the message.
 - Adding ALL after *Admin_commands* is now unsupported. You have to add all commands manually. 
-- Logging means logging of command usage. 0 = off, 1 = on, 2 = on but only for certain groups. (Add those to *Loging_groups*)
+- When logging is enabled, usage of commands is logged to addon/logs/PermissionPlugin.log. 0 = off, 1 = on, 2 = on but only for certain groups. (Add those to *Loging_groups*)
 - Make sure to keep commands lowercase and don't add any spaces.
 
 Player usage
