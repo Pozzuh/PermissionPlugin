@@ -19,10 +19,10 @@ Admin usage
 2. Now, you can start the server and let the config file generate. 
 3. Open sv_config.ini and edit the settings under *[Permission]* to your likings. 
 
-- You can add new groups by adding them after *Usergroups=* and adding 2 new lines, *<New Group Name>_xuids=...* and *<New Group Name>_commands=...* 
+- You can add new groups by adding them after *Usergroups=* and adding 2 new lines, *[New Group Name]_xuids=...* and *[New Group Name]_commands=...* 
 - Wildcards are supported in commands, but only at the end. This is mostly for usage with "God Plugin". If you want a group to be able to use !mapdome and !mapterminal from God Plugin, you should add !map*, and so forth.
-- The SpecialChat config option can enable modifying of messages. SpecialChatGroups set which groups should be modified. You can add more groups by adding *<Group Name>_SpecialSay=...*
-- *<Group Name>_SpecialSay* modifies what a message looks like. The following strings get replaced by: {0} = the user's group, {1} = the username, {2} = the message.
+- The SpecialChat config option can enable modifying of messages. SpecialChatGroups set which groups should be modified. You can add more groups by adding *[Group Name]_SpecialSay=...*
+- *[Group Name]_SpecialSay* modifies what a message looks like. The following strings get replaced by: {0} = the user's group, {1} = the username, {2} = the message.
 - Adding ALL after *Admin_commands* is now unsupported. You have to add all commands manually. 
 - When logging is enabled, usage of commands is logged to addon/logs/PermissionPlugin.log. 0 = off, 1 = on, 2 = on but only for certain groups. (Add those to *Loging_groups*)
 - Make sure to keep commands lowercase and don't add any spaces.
