@@ -17,10 +17,11 @@ namespace PermissionPlugin
 
         StreamWriter log;
         int logType;
+        int logFully;
 
         public override void OnServerLoad()
         {
-            ServerPrint("Permission plugin loaded. Author: Pozzuh. Version 1.4");
+            ServerPrint("Permission plugin loaded. Author: Pozzuh. Version 1.4b");
 
             initLog();
             firstStart(); 
@@ -58,6 +59,9 @@ namespace PermissionPlugin
 
             if (GetServerCFG("Permission", "Logging_groups", "-1") == "-1")
                 SetServerCFG("Permission", "Logging_groups", "Admin,Moderator");
+
+            if (GetServerCFG("Permission", "Logging_full", "-1") == "-1")
+                SetServerCFG("Permission", "Logging_full", "0"); // 0 = log only command, 1 = log command and args
 
             if (GetServerCFG("Permission", "SpecialChat", "-1") == "-1")
                 SetServerCFG("Permission", "SpecialChat", "0");
@@ -124,7 +128,10 @@ namespace PermissionPlugin
         void initLog()
         {
             string sLogType = GetServerCFG("Permission", "Logging", "0");
+            string sLogFully = GetServerCFG("Permission", "Logging_full", "0");
+
             Int32.TryParse(sLogType, out logType);
+            Int32.TryParse(sLogFully, out logFully);
 
             if (logType == 0)
                 return;
@@ -269,18 +276,18 @@ namespace PermissionPlugin
             return "User";
         }
 
-        public override ChatType OnSay(string Message, ServerClient Client, bool teamChat)
+        public override ChatType OnSay(string message, ServerClient client, bool teamChat)
         {
-            string userIsInGroup = getUserGroup(Client.XUID);
-            string lowMsg = Message.ToLower();
-            List<string> allowed_commands = getCommandsAllowedInGroup(userIsInGroup);
+            string userIsInGroup = getUserGroup(client.XUID);
+            string lowMsg = message.ToLower();
+            List<string> allowedCommands = getCommandsAllowedInGroup(userIsInGroup);
 
             if (!lowMsg.StartsWith("!"))
             {
                 if(specialChat && !teamChat && groupHasSpecialSay(userIsInGroup))
                 {
                     string formatString = getSpecialChatGroupString(userIsInGroup);
-                    ServerSay(string.Format(formatString, getUserGroup(Client.XUID), Client.Name, Message), true);
+                    ServerSay(string.Format(formatString, getUserGroup(client.XUID), client.Name, message), true);
                     return ChatType.ChatNone;
                 }
                 
@@ -289,56 +296,55 @@ namespace PermissionPlugin
 
             if (lowMsg.StartsWith("!getxuid")) //Can't be used in the permission plugin OH THE IRONY (or something?)
             {
-                logCommand(Client.XUID, Client.Name, "!getxuid", true, userIsInGroup);
-                TellClient(Client.ClientNum, "Your xuid is: \'" + Client.XUID + "\'.", true);
+                logCommand(client.XUID, client.Name, "!getxuid", true, userIsInGroup);
+                TellClient(client.ClientNum, "Your xuid is: \'" + client.XUID + "\'.", true);
                 return ChatType.ChatNone;
             }
 
             if (lowMsg.StartsWith("!gettype"))
             {
-                logCommand(Client.XUID, Client.Name, "!gettype", true, userIsInGroup);
-                TellClient(Client.ClientNum, "Your user type is: \'" + userIsInGroup + "\'.", true);
+                logCommand(client.XUID, client.Name, "!gettype", true, userIsInGroup);
+                TellClient(client.ClientNum, "Your user type is: \'" + userIsInGroup + "\'.", true);
                 return ChatType.ChatNone;
             }
 
             if (lowMsg.StartsWith("!help") || lowMsg.StartsWith("!cmdlist"))
             {
-                logCommand(Client.XUID, Client.Name, "!help", true, userIsInGroup);
+                logCommand(client.XUID, client.Name, "!help", true, userIsInGroup);
                 
                 string msg = "You can use the following commands^1:^7 ";
 
-                for (int i = 0; i < allowed_commands.Count; i++)
+                for (int i = 0; i < allowedCommands.Count; i++)
                 {
-                    if (i == (allowed_commands.Count - 2))
-                        msg += allowed_commands[i] + "^1 and^7 ";
-                    else if (i == (allowed_commands.Count - 1))
-                        msg += allowed_commands[i] + "^1.";
+                    if (i == (allowedCommands.Count - 2))
+                        msg += allowedCommands[i] + "^1 and^7 ";
+                    else if (i == (allowedCommands.Count - 1))
+                        msg += allowedCommands[i] + "^1.";
                     else
-                        msg += allowed_commands[i] + "^1,^7 ";
+                        msg += allowedCommands[i] + "^1,^7 ";
                 }
 
-                TellClient(Client.ClientNum, msg, true);
+                TellClient(client.ClientNum, msg, true);
                 return ChatType.ChatNone;
             }
 
             if (!checkCommandExist(lowMsg.Split(' ')[0]))
             {
-                TellClient(Client.ClientNum, "^1That command doesn't exist.", true);
+                TellClient(client.ClientNum, "^1That command doesn't exist.", true);
                 return ChatType.ChatNone;
             }
 
-            //if (allowed_commands.Contains(lowMsg.Split(' ')[0]))
-            if(canUseCommand(lowMsg.Split(' ')[0], userIsInGroup))
+            string logCmd = logFully == 1 ? lowMsg : lowMsg.Split(' ')[0];
+
+            if (canUseCommand(lowMsg.Split(' ')[0], userIsInGroup))
             {
-                logCommand(Client.XUID, Client.Name, lowMsg.Split(' ')[0], true, userIsInGroup);
+                logCommand(client.XUID, client.Name, logCmd, true, userIsInGroup);
                 return ChatType.ChatContinue;
             }
-            else
-            {
-                logCommand(Client.XUID, Client.Name, lowMsg.Split(' ')[0], false, userIsInGroup);
-                TellClient(Client.ClientNum, "^1You aren't allowed to use that command!", true);
-                return ChatType.ChatNone;
-            }
+
+            logCommand(client.XUID, client.Name, logCmd, false, userIsInGroup);
+            TellClient(client.ClientNum, "^1You aren't allowed to use that command!", true);
+            return ChatType.ChatNone;
         }
     }
 }
